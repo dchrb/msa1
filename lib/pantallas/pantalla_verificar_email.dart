@@ -1,9 +1,7 @@
-
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:msa/pantallas/pantalla_principal.dart';
-
+import 'package:msa/pantallas/main_scaffold.dart';
 
 class PantallaVerificarEmail extends StatefulWidget {
   const PantallaVerificarEmail({super.key});
@@ -20,14 +18,10 @@ class _PantallaVerificarEmailState extends State<PantallaVerificarEmail> {
   @override
   void initState() {
     super.initState();
-    // Comprobar si el email ya está verificado al entrar
     _isEmailVerified = FirebaseAuth.instance.currentUser!.emailVerified;
 
     if (!_isEmailVerified) {
-      // Si no está verificado, enviar un correo de verificación
       _sendVerificationEmail();
-
-      // Iniciar un temporizador para comprobar el estado de verificación cada 3 segundos
       _timer = Timer.periodic(
         const Duration(seconds: 3),
         (_) => _checkEmailVerified(),
@@ -37,13 +31,11 @@ class _PantallaVerificarEmailState extends State<PantallaVerificarEmail> {
 
   @override
   void dispose() {
-    // Es crucial cancelar el temporizador para evitar fugas de memoria
     _timer?.cancel();
     super.dispose();
   }
 
   Future<void> _checkEmailVerified() async {
-    // Recargar los datos del usuario desde Firebase
     await FirebaseAuth.instance.currentUser!.reload();
     if (!mounted) return;
 
@@ -53,11 +45,9 @@ class _PantallaVerificarEmailState extends State<PantallaVerificarEmail> {
 
     if (_isEmailVerified) {
       _timer?.cancel();
-      // Si el email se ha verificado, navega a la pantalla principal
-      // y elimina todas las rutas anteriores para que el usuario no pueda volver atrás.
       if(mounted){
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const PantallaPrincipal()),
+          MaterialPageRoute(builder: (context) => const MainScaffold()),
           (route) => false,
         );
       }
@@ -69,9 +59,8 @@ class _PantallaVerificarEmailState extends State<PantallaVerificarEmail> {
       final user = FirebaseAuth.instance.currentUser!;
       await user.sendEmailVerification();
 
-      // Deshabilitar el botón de reenvío por 60 segundos para evitar spam
       if(mounted) setState(() => _canResendEmail = false);
-      await Future.delayed(const Duration(seconds: 60));
+      await Future.delayed(const Duration(seconds: 5)); // Reducido para testing
       if(mounted) {
         setState(() => _canResendEmail = true);
       }
@@ -86,9 +75,8 @@ class _PantallaVerificarEmailState extends State<PantallaVerificarEmail> {
 
   @override
   Widget build(BuildContext context) {
-    // Si el email ya está verificado, muestra la pantalla principal directamente
     return _isEmailVerified
-        ? const PantallaPrincipal()
+        ? const MainScaffold()
         : Scaffold(
             appBar: AppBar(
               title: const Text("Verifica tu Correo Electrónico"),

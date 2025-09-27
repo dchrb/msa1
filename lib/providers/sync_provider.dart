@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:msa/models/models.dart';
-
 // Import all data providers
 import 'package:msa/providers/providers.dart';
 
@@ -68,14 +67,17 @@ class SyncProvider with ChangeNotifier {
     } else if (newUser == null) {
       await _clearAllLocalData();
       debugPrint("Usuario deslogueado. Datos locales borrados.");
-    } else if (newUser.metadata.creationTime == newUser.metadata.lastSignInTime) {
-       debugPrint("Primer login o restauración necesaria.");
-       await restoreAllData();
+    } else if (newUser.metadata.creationTime != null &&
+        newUser.metadata.lastSignInTime != null &&
+        newUser.metadata.creationTime!.millisecondsSinceEpoch ==
+            newUser.metadata.lastSignInTime!.millisecondsSinceEpoch) {
+      debugPrint("Primer login o restauración necesaria.");
+      await restoreAllData();
     }
-    
+
     notifyListeners();
   }
-  
+
   Future<bool> syncAllData() async {
     if (_user == null || isSyncing) return false;
 
@@ -94,7 +96,9 @@ class SyncProvider with ChangeNotifier {
       _addCollectionToBatch(batch, 'users/$userId/agua', _waterProvider?.registros);
       _addCollectionToBatch(batch, 'users/$userId/recordatorios', _recordatorioProvider?.recordatorios);
       _addCollectionToBatch(batch, 'users/$userId/recetas', _recetaProvider?.recetas);
-      _addCollectionToBatch(batch, 'users/$userId/dieta', _dietaProvider?.menuSemanal.values.expand((x) => x).toList());
+      if (_dietaProvider?.menuSemanal != null) {
+        _addCollectionToBatch(batch, 'users/$userId/dieta', _dietaProvider!.menuSemanal.values.expand((x) => x).toList());
+      }
 
       if (_profileProvider?.profile != null) {
         final profileDoc = _firestore.collection('users').doc(userId).collection('configuracion').doc('perfil');
@@ -104,12 +108,11 @@ class SyncProvider with ChangeNotifier {
         final waterGoalDoc = _firestore.collection('users').doc(userId).collection('configuracion').doc('metaAgua');
         batch.set(waterGoalDoc, {'metaDiaria': _waterProvider!.metaDiaria});
       }
-      
+
       await batch.commit();
       _lastSyncTime = DateTime.now();
       debugPrint("Respaldo completado con éxito.");
       return true;
-
     } catch (e) {
       debugPrint("Error durante el respaldo: $e");
       return false;
@@ -127,10 +130,9 @@ class SyncProvider with ChangeNotifier {
 
     try {
       final userId = _user!.uid;
-      
+
       await _clearAllLocalData();
-      
-      // Restaurar configuraciones
+
       final profileSnap = await _firestore.collection('users').doc(userId).collection('configuracion').doc('perfil').get();
       if (profileSnap.exists && _profileProvider != null) {
         _profileProvider!.loadProfileFromMap(profileSnap.data()!);
@@ -143,7 +145,6 @@ class SyncProvider with ChangeNotifier {
         }
       }
 
-      // Restaurar colecciones
       final platos = await _restoreCollection<Plato>('users/$userId/platos', Plato.fromJson);
       final alimentos = await _restoreCollection<Alimento>('users/$userId/alimentos', Alimento.fromJson);
       await _foodProvider?.replaceAllData(platos, alimentos);
@@ -159,7 +160,6 @@ class SyncProvider with ChangeNotifier {
       _lastSyncTime = DateTime.now();
       debugPrint("Restauración completada con éxito.");
       return true;
-
     } catch (e) {
       debugPrint("Error durante la restauración: $e");
       return false;
@@ -192,7 +192,7 @@ class SyncProvider with ChangeNotifier {
   }
 
   Future<void> _clearAllLocalData() async {
-     debugPrint('Limpiando todos los datos locales.');
+    debugPrint('Limpiando todos los datos locales.');
     await _medidaProvider?.replaceAll([]);
     await _foodProvider?.replaceAllData([], []);
     await _entrenamientoProvider?.replaceAllEjercicios([]);
@@ -234,27 +234,27 @@ class SyncProvider with ChangeNotifier {
   }
 
   Future<bool> linkWithGoogle() async {
-    // ... (código existente)
+    // Implementa la lógica si la necesitas
     return false;
   }
 
   Future<bool> linkWithEmail(String email, String password) async {
-    // ... (código existente)
+    // Implementa la lógica si la necesitas
     return false;
   }
 
   Future<bool> linkAccountWithCredential(AuthCredential credential) async {
-    // ... (código existente)
+    // Implementa la lógica si la necesitas
     return false;
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
     await _googleSignIn.signOut();
+    await _auth.signOut();
   }
 
   Future<String?> sendPasswordResetEmail(String email) async {
-    // ... (código existente)
+    // Implementa la lógica si la necesitas
     return null;
   }
 

@@ -14,6 +14,116 @@ class Recordatorios extends StatefulWidget {
 }
 
 class _RecordatoriosState extends State<Recordatorios> {
+  @override
+  Widget build(BuildContext context) {
+    final recordatorioProvider = context.read<RecordatorioProvider>();
+
+    return FutureBuilder(
+      future: recordatorioProvider.initializationFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        } else if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Text('Error al cargar recordatorios: ${snapshot.error}'),
+            ),
+          );
+        } else {
+          // Una vez inicializado, usamos `watch` para que la UI se reconstruya con los cambios.
+          return _buildRecordatoriosList(context);
+        }
+      },
+    );
+  }
+
+  Widget _buildRecordatoriosList(BuildContext context) {
+    // Ahora usamos 'watch' para que la lista se actualice si se añade o elimina un recordatorio.
+    final recordatorioProvider = context.watch<RecordatorioProvider>();
+    final recordatorios = recordatorioProvider.recordatorios;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mis Recordatorios'),
+      ),
+      body: recordatorios.isEmpty
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text(
+                  'No tienes recordatorios.\n¡Añade uno para que no se te olvide nada!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.only(bottom: 100),
+              itemCount: recordatorios.length,
+              itemBuilder: (context, index) {
+                final recordatorio = recordatorios[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  elevation: 2.0,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    title: Text(
+                      recordatorio.mensaje,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        decoration: !recordatorio.activado ? TextDecoration.lineThrough : null,
+                        color: !recordatorio.activado ? Colors.grey : null,
+                      ),
+                    ),
+                    subtitle: Text(
+                      _formatearHora(recordatorio.timeOfDay),
+                      style: TextStyle(
+                        decoration: !recordatorio.activado ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                    trailing: Switch(
+                      value: recordatorio.activado,
+                      onChanged: (value) {
+                        final r = recordatorio;
+                        r.activado = value;
+                        // Aquí usamos `read` porque estamos en un callback, no en el `build`
+                        context.read<RecordatorioProvider>().actualizarRecordatorio(r);
+                      },
+                    ),
+                    onTap: () {
+                      _mostrarDialogoEditar(context, recordatorio);
+                    },
+                    onLongPress: () {
+                      _mostrarDialogoConfirmarEliminar(context, recordatorio.id);
+                    },
+                  ),
+                );
+              },
+            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _mostrarDialogoAnadir(context),
+        child: const Icon(Icons.add),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton.icon(
+          onPressed: _mostrarNotificacionDePrueba,
+          icon: const Icon(Icons.notifications_active_outlined),
+          label: const Text('Probar Notificación'),
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            backgroundColor: Theme.of(context).colorScheme.secondary,
+            foregroundColor: Theme.of(context).colorScheme.onSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- El resto de los métodos (_formatearHora, dialogos, etc.) permanecen sin cambios ---
 
   String _formatearHora(TimeOfDay hora) {
     final hour = hora.hourOfPeriod == 0 ? 12 : hora.hourOfPeriod;
@@ -95,89 +205,6 @@ class _RecordatoriosState extends State<Recordatorios> {
 
   void _mostrarNotificacionDePrueba() {
     NotificationService().mostrarNotificacionDePrueba();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final recordatorioProvider = context.watch<RecordatorioProvider>();
-    final recordatorios = recordatorioProvider.recordatorios;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mis Recordatorios'),
-      ),
-      body: recordatorioProvider.recordatorios.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Text(
-                  'No tienes recordatorios.\n¡Añade uno para que no se te olvide nada!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 100),
-              itemCount: recordatorios.length,
-              itemBuilder: (context, index) {
-                final recordatorio = recordatorios[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  elevation: 2.0,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    title: Text(
-                      recordatorio.mensaje,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        decoration: !recordatorio.activado ? TextDecoration.lineThrough : null,
-                        color: !recordatorio.activado ? Colors.grey : null,
-                      ),
-                    ),
-                    subtitle: Text(
-                      _formatearHora(recordatorio.timeOfDay),
-                       style: TextStyle(
-                        decoration: !recordatorio.activado ? TextDecoration.lineThrough : null,
-                      ),
-                    ),
-                    trailing: Switch(
-                      value: recordatorio.activado,
-                      onChanged: (value) {
-                        final r = recordatorio;
-                        r.activado = value;
-                        recordatorioProvider.actualizarRecordatorio(r);
-                      },
-                    ),
-                    onTap: () {
-                      _mostrarDialogoEditar(context, recordatorio);
-                    },
-                    onLongPress: () {
-                      _mostrarDialogoConfirmarEliminar(context, recordatorio.id);
-                    },
-                  ),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _mostrarDialogoAnadir(context),
-        child: const Icon(Icons.add),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton.icon(
-          onPressed: _mostrarNotificacionDePrueba,
-          icon: const Icon(Icons.notifications_active_outlined),
-          label: const Text('Probar Notificación'),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            backgroundColor: Theme.of(context).colorScheme.secondary,
-            foregroundColor: Theme.of(context).colorScheme.onSecondary,
-          ),
-        ),
-      ),
-    );
   }
 
   void _mostrarDialogoAnadir(BuildContext context) async {

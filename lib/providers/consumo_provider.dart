@@ -1,46 +1,85 @@
 import 'package:flutter/foundation.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart';
 import 'package:msa/models/comida_consumida.dart';
+import 'package:msa/models/profile.dart';
+import 'package:msa/providers/profile_provider.dart';
 import 'package:uuid/uuid.dart';
 
 class ConsumoProvider with ChangeNotifier {
-  late Box<ComidaConsumida> _consumoBox;
-  bool _isInitialized = false;
+  final Box<ComidaConsumida> _consumoBox;
+  ProfileProvider? _profileProvider;
 
-  // Meta calórica diaria. En el futuro, esto podría ser configurable por el usuario.
-  final int _metaCaloricaDiaria = 2000;
+  ConsumoProvider() : _consumoBox = Hive.box<ComidaConsumida>('comidasConsumidasBox');
 
-  Box<ComidaConsumida> get consumoBox => _consumoBox;
-  bool get isInitialized => _isInitialized;
-  int get metaCaloricaDiaria => _metaCaloricaDiaria;
-
-  ConsumoProvider() {
-    _init();
-  }
-
-  Future<void> _init() async {
-    _consumoBox = await Hive.openBox<ComidaConsumida>('comidasConsumidasBox');
-    _isInitialized = true;
+  void update(ProfileProvider profileProvider) {
+    _profileProvider = profileProvider;
     notifyListeners();
   }
 
-  // Calcula las calorías consumidas en el día de hoy
-  int get caloriasConsumidasHoy {
-    if (!_isInitialized) return 0;
+  int get metaCaloricaDiaria {
+    if (_profileProvider?.profile?.calorieGoal != null && _profileProvider!.profile!.calorieGoal > 0) {
+      return _profileProvider!.profile!.calorieGoal.round();
+    }
+    return calcularCaloriasRecomendadas().round();
+  }
 
+  double calcularCaloriasRecomendadas() {
+    if (_profileProvider?.profile == null) {
+      return 2000; 
+    }
+
+    final profile = _profileProvider!.profile!;
+    final peso = profile.currentWeight;
+    final altura = profile.height;
+    final edad = profile.age;
+    final sexo = profile.sex;
+    final nivelActividad = profile.activityLevel;
+
+    if (peso == 0 || altura == 0 || edad == 0) {
+      return 2000;
+    }
+
+    double bmr;
+    if (sexo == Sexo.masculino) {
+      bmr = 88.362 + (13.397 * peso) + (4.799 * altura) - (5.677 * edad);
+    } else {
+      bmr = 447.593 + (9.247 * peso) + (3.098 * altura) - (4.330 * edad);
+    }
+
+    double multiplicador = 1.2; // Sedentario por defecto
+    switch (nivelActividad) {
+      case NivelActividad.sedentario:
+        multiplicador = 1.2;
+        break;
+      case NivelActividad.ligero:
+        multiplicador = 1.375;
+        break;
+      case NivelActividad.moderado:
+        multiplicador = 1.55;
+        break;
+      case NivelActividad.activo:
+        multiplicador = 1.725;
+        break;
+      case NivelActividad.muyActivo:
+        multiplicador = 1.9;
+        break;
+    }
+  
+    return bmr * multiplicador;
+  }
+
+  int get caloriasConsumidasHoy {
     final ahora = DateTime.now();
     final inicioHoy = DateTime(ahora.year, ahora.month, ahora.day);
-    final finHoy = inicioHoy.add(const Duration(days: 1));
+    final finHoy = DateTime(ahora.year, ahora.month, ahora.day + 1);
 
     return _consumoBox.values
-        .where((consumo) => 
-            consumo.fecha.isAfter(inicioHoy) && consumo.fecha.isBefore(finHoy))
+        .where((consumo) =>
+            !consumo.fecha.isBefore(inicioHoy) && consumo.fecha.isBefore(finHoy))
         .fold(0, (sum, item) => sum + item.calorias);
   }
 
-  // Método para registrar una nueva comida consumida
   Future<void> registrarComida(String nombre, int calorias) async {
-    if (!_isInitialized) return;
     final nuevoConsumo = ComidaConsumida(
       id: const Uuid().v4(),
       nombre: nombre,
@@ -48,10 +87,8 @@ class ConsumoProvider with ChangeNotifier {
       fecha: DateTime.now(),
     );
     await _consumoBox.put(nuevoConsumo.id, nuevoConsumo);
-    notifyListeners(); // Notificamos manualmente
+    notifyListeners();
   }
 
-   // Método para obtener todos los registros (útil para historial, debug, etc.)
   List<ComidaConsumida> get todosLosConsumos => _consumoBox.values.toList();
-
 }

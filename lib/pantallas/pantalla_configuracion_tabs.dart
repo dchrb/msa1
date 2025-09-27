@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:msa/pantallas/pantalla_perfil.dart';
+import 'package:msa/pantallas/recordatorios.dart'; // <-- CAMBIO: Importamos Recordatorios
 import 'package:msa/pantallas/pantalla_temas.dart';
 
 class PantallaConfiguracionTabs extends StatefulWidget {
@@ -13,13 +13,15 @@ class PantallaConfiguracionTabs extends StatefulWidget {
 class _PantallaConfiguracionTabsState extends State<PantallaConfiguracionTabs> with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  // --- CAMBIO: Actualizamos las pestañas a las correctas ---
   static const List<Tab> _tabs = [
-    Tab(text: 'Perfil y Metas', icon: Icon(Icons.person)),
-    Tab(text: 'Temas', icon: Icon(Icons.color_lens_outlined)),
+    Tab(text: 'Recordatorios', icon: Icon(Icons.notifications_outlined)),
+    Tab(text: 'Temas', icon: Icon(Icons.palette_outlined)),
   ];
 
+  // --- CAMBIO: Actualizamos las vistas de las pestañas ---
   final List<Widget> _tabViews = [
-    const PantallaPerfil(),
+    const Recordatorios(),
     const PantallaTemas(),
   ];
 

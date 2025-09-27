@@ -12,30 +12,27 @@ import 'package:msa/providers/providers.dart';
 import 'package:msa/services/notification_service.dart';
 
 import 'package:msa/pantallas/pantallas.dart';
-import 'package:msa/pantallas/pantalla_principal.dart';
-import 'firebase_options.dart'; // <-- Importa las opciones de Firebase
+import 'package:msa/pantallas/main_scaffold.dart'; // <-- CAMBIO: Importamos el nuevo scaffold
+import 'firebase_options.dart'; 
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Cargar variables de entorno antes de inicializar providers
   await dotenv.load(fileName: ".env");
 
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions
-          .currentPlatform, // <-- Inicializa Firebase para web/móvil
+          .currentPlatform, 
     );
     await FirebaseAppCheck.instance.activate(
       androidProvider: AndroidProvider.debug,
     );
 
-    // Inicializar el servicio de notificaciones
     await NotificationService().initialize();
 
     await Hive.initFlutter();
 
-    // Registro de todos los adaptadores
     Hive.registerAdapter(MedidaAdapter());
     Hive.registerAdapter(PlatoAdapter());
     Hive.registerAdapter(AlimentoAdapter());
@@ -53,7 +50,6 @@ Future<void> main() async {
     Hive.registerAdapter(InsigniaAdapter());
     Hive.registerAdapter(RachaAdapter());
 
-    // Apertura de todas las cajas de Hive.
     await Hive.openBox<Map>('food');
     await Hive.openBox<Medida>('medidas');
     await Hive.openBox<Ejercicio>('ejercicios');
@@ -91,7 +87,16 @@ class AppState extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DietaProvider()),
         ChangeNotifierProvider(create: (_) => InsigniaProvider()),
         ChangeNotifierProvider(create: (_) => RachaProvider()),
-        ChangeNotifierProvider(create: (_) => ConsumoProvider()),
+        
+        ChangeNotifierProxyProvider<ProfileProvider, ConsumoProvider>(
+          create: (_) => ConsumoProvider(),
+          update: (_, profileProvider, consumo) {
+            consumo ??= ConsumoProvider();
+            consumo.update(profileProvider);
+            return consumo;
+          },
+        ),
+
         ChangeNotifierProxyProvider<FoodProvider, SyncProvider>(
           create: (_) => SyncProvider(),
           update: (context, foodProvider, sync) {
@@ -168,7 +173,8 @@ class AuthWrapper extends StatelessWidget {
               !user.emailVerified) {
             return const PantallaVerificarEmail();
           }
-          return const PantallaPrincipal();
+          // <-- CAMBIO: Usamos el nuevo scaffold principal
+          return const MainScaffold(); 
         }
 
         return const PantallaAuth();

@@ -1,97 +1,114 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:msa/providers/racha_provider.dart';
+
+import 'package:msa/providers/profile_provider.dart';
 import 'package:msa/providers/consumo_provider.dart';
 import 'package:msa/providers/water_provider.dart';
 import 'package:msa/providers/entrenamiento_provider.dart';
 import 'package:msa/widgets/anillos_progreso.dart';
-import 'package:msa/widgets/tarjeta_racha.dart';
-import 'package:msa/widgets/screen_watermark.dart';
 
 class PantallaInicio extends StatelessWidget {
   const PantallaInicio({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Get providers
+    final profileProvider = context.watch<ProfileProvider>();
     final consumoProvider = context.watch<ConsumoProvider>();
     final waterProvider = context.watch<WaterProvider>();
     final entrenamientoProvider = context.watch<EntrenamientoProvider>();
-    final rachaProvider = context.watch<RachaProvider>();
 
-    final caloriasConsumidas = consumoProvider.caloriasConsumidasHoy;
-    final metaCalorias = consumoProvider.metaCaloricaDiaria;
-    
+    // Get data for rings
+    final caloriasConsumidas = consumoProvider.caloriasConsumidasHoy.toDouble();
+    final metaCalorias = consumoProvider.metaCaloricaDiaria.toDouble();
     final aguaConsumida = waterProvider.consumoTotalHoy;
     final metaAgua = waterProvider.metaDiaria;
-    
-    final minutosEntrenamiento = entrenamientoProvider.minutosEntrenadosHoy;
-    final metaEntrenamiento = entrenamientoProvider.metaMinutosDiaria;
+    final minutosEjercicio = entrenamientoProvider.minutosEntrenadosHoy;
+    final metaMinutosEjercicio = entrenamientoProvider.metaMinutosDiaria;
 
-    final rachasActivas = rachaProvider.rachas.where((r) => r.rachaActual > 0).toList();
+    // Get data for goals display
+    final pesoActual = profileProvider.profile?.currentWeight;
+    final metaPeso = profileProvider.profile?.weightGoal;
 
     return Scaffold(
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AnillosProgreso(
-                  caloriasConsumidas: caloriasConsumidas.toDouble(),
-                  metaCalorias: metaCalorias.toDouble(),
-                  aguaConsumida: aguaConsumida,
-                  metaAgua: metaAgua,
-                  minutosEjercicio: minutosEntrenamiento.toInt(),
-                  metaMinutosEjercicio: metaEntrenamiento.toInt(),
-                ),
-                const SizedBox(height: 32),
-
-                _buildQuickAccessButtons(context),
-                const SizedBox(height: 32),
-
-                if (rachasActivas.isNotEmpty)
-                  _buildRachasSection(context, rachasActivas),
-
-              ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 20),
+            AnillosProgreso(
+              caloriasConsumidas: caloriasConsumidas,
+              metaCalorias: metaCalorias,
+              aguaConsumida: aguaConsumida,
+              metaAgua: metaAgua,
+              minutosEjercicio: minutosEjercicio.toInt(),
+              metaMinutosEjercicio: metaMinutosEjercicio.toInt(),
             ),
-          ),
-
-          const ScreenWatermark(
-            imagePath: 'assets/images/luna_inicio.png',
-          ),
-        ],
+            const SizedBox(height: 40),
+            _buildResumenMetas(
+              context,
+              metaCalorias: metaCalorias,
+              pesoActual: pesoActual,
+              metaPeso: metaPeso,
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildQuickAccessButtons(BuildContext context) {
-    return Row(
+  Widget _buildResumenMetas(BuildContext context, {
+    required double metaCalorias,
+    double? pesoActual,
+    double? metaPeso,
+  }) {
+    final theme = Theme.of(context);
+    
+    // No mostrar el widget si no hay perfil para evitar datos vacíos
+    if (pesoActual == null) {
+      return const Center(
+        child: Text('Crea un perfil para ver tus metas.'),
+      );
+    }
+    
+    return Column(
       children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.restaurant_menu),
-            label: const Text('Comida'),
-            onPressed: () {
-              // TODO: Navegar a la pantalla de registro de comida
-            },
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
+        Text(
+          'Resumen de Metas',
+          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.local_drink),
-            label: const Text('Agua'),
-            onPressed: () {
-               // TODO: Navegar a la pantalla de registro de agua
-            },
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        const SizedBox(height: 16),
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                _buildMetaRow(
+                  context,
+                  icon: Icons.local_fire_department_outlined,
+                  label: 'Meta Calórica',
+                  value: '${metaCalorias.toStringAsFixed(0)} Kcal',
+                ),
+                if (metaPeso != null && metaPeso > 0) ...[
+                  const Divider(height: 24, indent: 20, endIndent: 20),
+                  _buildMetaRow(
+                    context,
+                    icon: Icons.monitor_weight_outlined,
+                    label: 'Peso Actual',
+                    value: '${pesoActual.toStringAsFixed(1)} kg',
+                  ),
+                  const SizedBox(height: 8),
+                  _buildMetaRow(
+                    context,
+                    icon: Icons.flag_circle_outlined,
+                    label: 'Meta de Peso',
+                    value: '${metaPeso.toStringAsFixed(1)} kg',
+                  ),
+                ],
+              ],
             ),
           ),
         ),
@@ -99,27 +116,25 @@ class PantallaInicio extends StatelessWidget {
     );
   }
 
-  Widget _buildRachasSection(BuildContext context, List<RachaCompuesta> rachas) {
-    rachas.sort((a, b) => b.rachaActual.compareTo(a.rachaActual));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildMetaRow(BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
-          'Rachas Activas',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        Row(
+          children: [
+            Icon(icon, color: theme.colorScheme.primary, size: 20),
+            const SizedBox(width: 12),
+            Text(label, style: theme.textTheme.bodyLarge),
+          ],
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 120,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: rachas.length > 5 ? 5 : rachas.length,
-            itemBuilder: (context, index) {
-              return TarjetaRacha(racha: rachas[index]);
-            },
-             separatorBuilder: (context, index) => const SizedBox(width: 12),
-          ),
+        Text(
+          value,
+          style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
       ],
     );

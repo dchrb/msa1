@@ -9,10 +9,11 @@ import 'package:msa/services/notification_service.dart';
 class RecordatorioProvider with ChangeNotifier {
   SyncProvider? _syncProvider;
   late Box<Recordatorio> _recordatoriosBox;
-  bool _isInitialized = false;
+  
+  Future<void>? initializationFuture; // SEÑAL PÚBLICA
 
   RecordatorioProvider() {
-    _init();
+    initializationFuture = _init(); // Inicia el proceso y guarda la señal
   }
 
   void updateSyncProvider(SyncProvider? syncProvider) {
@@ -20,14 +21,17 @@ class RecordatorioProvider with ChangeNotifier {
   }
 
   Future<void> _init() async {
+    // Asegurarse de que la caja esté abierta antes de usarla.
+    if (!Hive.isBoxOpen('recordatoriosBox')) {
+      await Hive.openBox<Recordatorio>('recordatoriosBox');
+    }
     _recordatoriosBox = Hive.box<Recordatorio>('recordatoriosBox');
-    _isInitialized = true;
     notifyListeners();
+
     // Al inicializar, asegurarse que las notificaciones estén sincronizadas con el estado de Hive
     await _rescheduleAllNotifications();
   }
 
-  bool get isInitialized => _isInitialized;
   List<Recordatorio> get recordatorios => _recordatoriosBox.values.toList();
 
   Future<void> anadirRecordatorio(TimeOfDay hora, String mensaje) async {
@@ -40,7 +44,6 @@ class RecordatorioProvider with ChangeNotifier {
     );
     await _recordatoriosBox.put(nuevo.id, nuevo);
     await _syncProvider?.syncDocumentToFirestore('recordatorios', nuevo.id, nuevo.toJson());
-    // Usamos el método corregido y renombrado
     await NotificationService().programarRecordatorioDiario(nuevo);
     notifyListeners();
   }
@@ -48,7 +51,6 @@ class RecordatorioProvider with ChangeNotifier {
   Future<void> eliminarRecordatorio(String id) async {
     final recordatorio = _recordatoriosBox.get(id);
     if(recordatorio != null) {
-      // Usamos el método corregido y renombrado
        await NotificationService().cancelarRecordatorio(recordatorio.id);
     }
     
@@ -62,10 +64,8 @@ class RecordatorioProvider with ChangeNotifier {
     await _syncProvider?.syncDocumentToFirestore('recordatorios', recordatorio.id, recordatorio.toJson());
     
     if (recordatorio.activado) {
-      // Usamos el método corregido y renombrado
       await NotificationService().programarRecordatorioDiario(recordatorio);
     } else {
-      // Usamos el método corregido y renombrado
       await NotificationService().cancelarRecordatorio(recordatorio.id);
     }
     notifyListeners();
@@ -76,18 +76,15 @@ class RecordatorioProvider with ChangeNotifier {
     for (var recordatorio in remoteRecordatorios) {
       await _recordatoriosBox.put(recordatorio.id, recordatorio);
     }
-    // Al reemplazar todos los datos, reprogramar todas las notificaciones
     await _rescheduleAllNotifications();
     notifyListeners();
   }
 
   Future<void> _rescheduleAllNotifications() async {
     final notificationService = NotificationService();
-    // Usamos el método corregido y renombrado
     await notificationService.cancelarTodosLosRecordatorios(); 
     for (final recordatorio in _recordatoriosBox.values) {
       if (recordatorio.activado) {
-        // Usamos el método corregido y renombrado
         await notificationService.programarRecordatorioDiario(recordatorio);
       }
     }

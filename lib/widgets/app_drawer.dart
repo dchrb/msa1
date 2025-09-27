@@ -1,89 +1,97 @@
 import 'package:flutter/material.dart';
-import 'package:msa/pantallas/pantalla_recompensas.dart';
-import 'package:msa/pantallas/pantalla_logros.dart';
+import 'package:provider/provider.dart';
+import 'package:msa/providers/profile_provider.dart';
+import 'package:msa/pantallas/pantallas.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final profileProvider = Provider.of<ProfileProvider>(context);
+    final profile = profileProvider.profile;
+    final theme = Theme.of(context);
+
+    void navigateTo(Widget screen, {String? routeName}) {
+      Navigator.pop(context); // Cierra el drawer
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => screen,
+          settings: RouteSettings(name: routeName),
+        ),
+      );
+    }
+
+    void goHome() {
+      Navigator.pop(context); // Cierra el drawer
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: <Widget>[
-          const DrawerHeader(
-            decoration: BoxDecoration(
-              // Podríamos usar un color o una imagen que se alinee con el tema
-              color: Colors.purple,
-            ),
-            child: Text(
-              'Menú', 
-              style: TextStyle(
-                color: Colors.white, 
-                fontSize: 24,
+          GestureDetector(
+            onTap: () => navigateTo(const PantallaPerfil(), routeName: '/perfil'),
+            child: UserAccountsDrawerHeader(
+              accountName: Text(
+                profile?.name ?? 'Nombre de Usuario',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              accountEmail: const Text(
+                'Pulsa aquí para editar tu perfil',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              currentAccountPicture: CircleAvatar(
+                backgroundColor: Colors.white,
+                child: Text(
+                  profile?.name.isNotEmpty == true ? profile!.name[0].toUpperCase() : 'U',
+                  style: TextStyle(fontSize: 40.0, color: theme.primaryColor),
+                ),
+              ),
+              decoration: BoxDecoration(
+                color: theme.primaryColor,
               ),
             ),
           ),
 
+          _buildDrawerItem(context, icon: Icons.home_outlined, text: 'Inicio', onTap: goHome),
+          const Divider(),
+
           _buildSectionTitle(context, 'REGISTRO'),
-          _buildDrawerItem(context, icon: Icons.water_drop_outlined, text: 'Registrar Agua', onTap: () { 
-            // TODO: Navegar a la pantalla/tab de registro de agua
-            Navigator.pop(context);
-          }),
-          _buildDrawerItem(context, icon: Icons.restaurant_menu_outlined, text: 'Registrar Comidas', onTap: () {
-             // TODO: Navegar a la pantalla/tab de registro de comidas
-            Navigator.pop(context);
-          }),
-          _buildDrawerItem(context, icon: Icons.straighten_outlined, text: 'Registrar Medidas', onTap: () {
-            // TODO: Navegar a la pantalla/tab de registro de medidas
-            Navigator.pop(context);
-           }),
+          _buildDrawerItem(context, icon: Icons.water_drop_outlined, text: 'Registrar Agua', onTap: () => navigateTo(const PantallaRegistroTabs(initialIndex: 0), routeName: '/registro')),
+          _buildDrawerItem(context, icon: Icons.restaurant_menu_outlined, text: 'Registrar Comidas', onTap: () => navigateTo(const PantallaRegistroTabs(initialIndex: 1), routeName: '/registro')),
+          _buildDrawerItem(context, icon: Icons.straighten_outlined, text: 'Registrar Medidas', onTap: () => navigateTo(const PantallaRegistroTabs(initialIndex: 2), routeName: '/registro')),
 
           const Divider(),
 
           _buildSectionTitle(context, 'ACTIVIDAD FÍSICA'),
-          _buildDrawerItem(context, icon: Icons.history, text: 'Historial de Entrenamientos', onTap: () { 
-            // TODO: Navegar al historial
-            Navigator.pop(context);
-          }),
-          _buildDrawerItem(context, icon: Icons.book_outlined, text: 'Biblioteca de Ejercicios', onTap: () { 
-            // TODO: Navegar a la biblioteca
-            Navigator.pop(context);
-          }),
-
-          const Divider(),
-
-           _buildSectionTitle(context, 'METAS Y LOGROS'),
-          _buildDrawerItem(context, icon: Icons.trending_up, text: 'Metas y Logros', onTap: () {
-            Navigator.pop(context); // Cierra el drawer
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const PantallaLogros()));
-          }),
-          _buildDrawerItem(context, icon: Icons.emoji_events_outlined, text: 'Recompensas', onTap: () {
-            Navigator.pop(context); // Cierra el drawer
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const PantallaRecompensas()));
-          }),
+          _buildDrawerItem(context, icon: Icons.history, text: 'Historial de Entrenamientos', onTap: () => navigateTo(const PantallaActividadFisicaTabs(initialIndex: 0), routeName: '/actividad')),
+          _buildDrawerItem(context, icon: Icons.book_outlined, text: 'Biblioteca de Ejercicios', onTap: () => navigateTo(const PantallaActividadFisicaTabs(initialIndex: 1), routeName: '/actividad')),
 
           const Divider(),
 
           _buildSectionTitle(context, 'CONFIGURACIÓN'),
-           _buildDrawerItem(context, icon: Icons.flag_outlined, text: 'Configurar Meta Calórica', onTap: () { 
-            // TODO: Navegar a la configuración de metas
-            Navigator.pop(context);
-          }),
-          _buildDrawerItem(context, icon: Icons.notifications_outlined, text: 'Recordatorios', onTap: () { 
-            // TODO: Navegar a la pantalla de recordatorios
-            Navigator.pop(context);
-          }),
-           _buildDrawerItem(context, icon: Icons.palette_outlined, text: 'Temas y Configuración', onTap: () { 
-            // TODO: Navegar a la configuración general
-            Navigator.pop(context);
-          }),
+          _buildDrawerItem(context, icon: Icons.notifications_outlined, text: 'Recordatorios', onTap: () => navigateTo(const PantallaConfiguracionTabs(initialIndex: 0), routeName: '/configuracion')),
+          _buildDrawerItem(context, icon: Icons.palette_outlined, text: 'Temas y Configuración', onTap: () => navigateTo(const PantallaConfiguracionTabs(initialIndex: 1), routeName: '/configuracion')),
           
           const Divider(),
 
-          _buildDrawerItem(context, icon: Icons.info_outline, text: 'Acerca de', onTap: () { 
-            // TODO: Mostrar diálogo de "Acerca de"
-            Navigator.pop(context);
+          _buildDrawerItem(context, icon: Icons.info_outline, text: 'Acerca de', onTap: () {
+            Navigator.pop(context); 
+            showAboutDialog(
+              context: context,
+              applicationName: 'Mi Salud Activa',
+              applicationVersion: '1.0.0', 
+              applicationLegalese: '© 2024 Mi Salud Activa',
+              children: <Widget>[
+                const Padding(
+                  padding: EdgeInsets.only(top: 15),
+                  child: Text('Una aplicación para ayudarte a llevar un estilo de vida más saludable.'),
+                )
+              ],
+            );
           }),
         ],
       ),
@@ -95,8 +103,8 @@ class AppDrawer extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 8.0),
       child: Text(
         title,
-        style: const TextStyle(
-          color: Colors.purple, // Theme.of(context).colorScheme.primary
+        style: TextStyle(
+          color: Theme.of(context).primaryColor,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,
         ),

@@ -1,10 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-import 'package:msa/providers/profile_provider.dart';
 import 'package:msa/models/profile.dart';
-import 'package:msa/pantallas/pantalla_metas.dart';
+import 'package:msa/providers/profile_provider.dart';
 
 class PantallaPerfil extends StatefulWidget {
   const PantallaPerfil({super.key});
@@ -15,41 +12,31 @@ class PantallaPerfil extends StatefulWidget {
 
 class _PantallaPerfilState extends State<PantallaPerfil> {
   final _formKey = GlobalKey<FormState>();
-  final _nombreController = TextEditingController();
-  final _edadController = TextEditingController();
-  final _alturaController = TextEditingController();
-  final _pesoController = TextEditingController();
-
+  
+  late TextEditingController _nombreController;
+  late TextEditingController _edadController;
+  late TextEditingController _alturaController;
+  late TextEditingController _pesoController;
+  late TextEditingController _metaPesoController;
+  late TextEditingController _metaCaloriasController;
+  
   Sexo? _sexoSeleccionado;
   NivelActividad? _actividadSeleccionada;
-  File? _imagenSeleccionada;
-  bool _isEditing = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _cargarDatosDelPerfil();
-    });
-  }
-
-  void _cargarDatosDelPerfil() {
     final profile = context.read<ProfileProvider>().profile;
-    if (!mounted) return;
-    setState(() {
-      _nombreController.text = profile?.name ?? '';
-      _edadController.text = profile?.age.toString() ?? '';
-      _alturaController.text = profile?.height.toString() ?? '';
-      _pesoController.text = profile?.currentWeight.toString() ?? '';
-      _sexoSeleccionado = profile?.sex;
-      _actividadSeleccionada = profile?.activityLevel;
-
-      if (profile != null && profile.imagePath != null && profile.imagePath!.isNotEmpty) {
-        _imagenSeleccionada = File(profile.imagePath!);
-      } else {
-        _imagenSeleccionada = null;
-      }
-    });
+    
+    _nombreController = TextEditingController(text: profile?.name ?? '');
+    _edadController = TextEditingController(text: profile?.age.toString() ?? '0');
+    _alturaController = TextEditingController(text: profile?.height.toString() ?? '0');
+    _pesoController = TextEditingController(text: profile?.currentWeight.toString() ?? '0');
+    _metaPesoController = TextEditingController(text: profile?.weightGoal?.toString() ?? '');
+    _metaCaloriasController = TextEditingController(text: profile?.calorieGoal.toString() ?? '');
+    
+    _sexoSeleccionado = profile?.sex;
+    _actividadSeleccionada = profile?.activityLevel;
   }
 
   @override
@@ -58,152 +45,76 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
     _edadController.dispose();
     _alturaController.dispose();
     _pesoController.dispose();
+    _metaPesoController.dispose();
+    _metaCaloriasController.dispose();
     super.dispose();
   }
 
-  void _guardarCambios() async {
+  Future<void> _guardarPerfil() async {
     if (_formKey.currentState?.validate() ?? false) {
       final profileProvider = context.read<ProfileProvider>();
-      
       await profileProvider.guardarPerfil(
         nombre: _nombreController.text,
-        edad: int.tryParse(_edadController.text),
-        altura: double.tryParse(_alturaController.text),
-        peso: double.tryParse(_pesoController.text),
+        edad: int.tryParse(_edadController.text) ?? 0,
+        altura: double.tryParse(_alturaController.text) ?? 0,
+        peso: double.tryParse(_pesoController.text) ?? 0,
         sexo: _sexoSeleccionado,
         nivelActividad: _actividadSeleccionada,
-        imagePath: _imagenSeleccionada?.path,
       );
-
-      if(mounted) {
+      
+      await profileProvider.guardarMetas(
+        metaPeso: double.tryParse(_metaPesoController.text),
+        metaCalorias: double.tryParse(_metaCaloriasController.text),
+      );
+      
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Perfil actualizado con éxito"), backgroundColor: Colors.green)
+          const SnackBar(content: Text('Perfil guardado con éxito'), backgroundColor: Colors.green),
         );
-        setState(() { _isEditing = false; });
+        Navigator.of(context).pop();
       }
     }
   }
 
-  void _irAPantallaMetas() {
-     Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PantallaMetas())).then((_) {
-      _cargarDatosDelPerfil();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    final profileProvider = context.watch<ProfileProvider>();
-    final profile = profileProvider.profile;
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Mi Perfil')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildProfileImage(),
-            const SizedBox(height: 24),
-            _isEditing ? _buildEditCard() : _buildViewMode(context, profile),
-            const SizedBox(height: 24),
-            _buildGuestUpgradeSection(context), 
-            _buildBackupSection(context), 
-            const SizedBox(height: 24),
-            _buildLogoutButton(context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildViewMode(BuildContext context, Profile? profile) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildViewCard(profile),
-        const SizedBox(height: 24),
-        _buildGoalsCard(context, profile),
-      ],
-    );
-  }
-  
-  Widget _buildViewCard(Profile? profile) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-             _buildViewTile(Icons.person_outline, "Nombre", profile?.name),
-             _buildViewTile(Icons.cake_outlined, "Edad", profile?.age.toString()),
-             _buildViewTile(Icons.height_outlined, "Altura", "${profile?.height.toStringAsFixed(1) ?? 'N/A'} cm"),
-             _buildViewTile(Icons.monitor_weight_outlined, "Peso Actual", "${profile?.currentWeight.toStringAsFixed(1) ?? 'N/A'} kg"),
-             _buildViewTile(Icons.wc_outlined, "Sexo", profile?.sex.toString().split('.').last),
-             _buildViewTile(Icons.directions_run_outlined, "Nivel de Actividad", profile?.activityLevel.toString().split('.').last, showDivider: false),
-          ],
-        ),
-      )
-    );
-  }
-
-  Widget _buildGoalsCard(BuildContext context, Profile? profile) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.flag_outlined, color: Colors.grey),
-            title: const Text("Mis Metas", style: TextStyle(fontWeight: FontWeight.bold)),
-            trailing: TextButton(onPressed: _irAPantallaMetas, child: const Text("Editar")),
+      appBar: AppBar(
+        title: const Text('Mi Perfil'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.save_alt_outlined),
+            onPressed: _guardarPerfil,
+            tooltip: 'Guardar Perfil',
           ),
-          const Divider(height: 1, indent: 16, endIndent: 16),
-          _buildViewTile(Icons.local_fire_department_outlined, "Meta de Calorías", "${profile?.calorieGoal.toStringAsFixed(0) ?? 'No est.'} kcal"),
-          _buildViewTile(Icons.monitor_weight_outlined, "Meta de Peso", "${profile?.weightGoal?.toStringAsFixed(1) ?? 'No est.'} kg", showDivider: false),
         ],
       ),
-    );
-  }
-
-  Widget _buildEditCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
         child: Form(
           key: _formKey,
           child: Column(
-            children: [
-              TextFormField(controller: _nombreController, decoration: const InputDecoration(labelText: 'Nombre')),
-              TextFormField(controller: _edadController, decoration: const InputDecoration(labelText: 'Edad'), keyboardType: TextInputType.number),
-              TextFormField(controller: _alturaController, decoration: const InputDecoration(labelText: 'Altura (cm)'), keyboardType: TextInputType.number),
-              TextFormField(controller: _pesoController, decoration: const InputDecoration(labelText: 'Peso (kg)'), keyboardType: TextInputType.number),
-              DropdownButtonFormField<Sexo>(
-                decoration: const InputDecoration(labelText: 'Sexo'),
-                items: Sexo.values.map((Sexo sex) {
-                  return DropdownMenuItem<Sexo>(value: sex, child: Text(sex.toString().split('.').last));
-                }).toList(),
-                onChanged: (Sexo? newValue) {
-                  setState(() {
-                    _sexoSeleccionado = newValue;
-                  });
-                },
-                initialValue: _sexoSeleccionado,
-              ),
-              DropdownButtonFormField<NivelActividad>(
-                decoration: const InputDecoration(labelText: 'Nivel de Actividad'),
-                items: NivelActividad.values.map((NivelActividad level) {
-                  return DropdownMenuItem<NivelActividad>(value: level, child: Text(level.toString().split('.').last));
-                }).toList(),
-                onChanged: (NivelActividad? newValue) {
-                  setState(() {
-                    _actividadSeleccionada = newValue;
-                  });
-                },
-                initialValue: _actividadSeleccionada,
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(onPressed: _guardarCambios, child: const Text('Guardar Cambios'))
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const Text('Información Personal', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              _buildTextField(_nombreController, 'Nombre', Icons.person_outline),
+              const SizedBox(height: 16),
+              _buildTextField(_edadController, 'Edad', Icons.cake_outlined, keyboardType: TextInputType.number),
+              const SizedBox(height: 16),
+              _buildTextField(_alturaController, 'Altura (cm)', Icons.height_outlined, keyboardType: TextInputType.number),
+              const SizedBox(height: 16),
+              _buildTextField(_pesoController, 'Peso (kg)', Icons.monitor_weight_outlined, keyboardType: TextInputType.number),
+              const SizedBox(height: 24),
+              _buildSexoDropdown(),
+              const SizedBox(height: 24),
+              _buildActividadDropdown(),
+              const Divider(height: 40),
+              const Text('Mis Metas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              _buildTextField(_metaPesoController, 'Meta de Peso (kg)', Icons.flag_circle_outlined, keyboardType: TextInputType.number, isRequired: false),
+              const SizedBox(height: 16),
+              _buildTextField(_metaCaloriasController, 'Meta de Calorías (Kcal)', Icons.local_fire_department_outlined, keyboardType: TextInputType.number, isRequired: false),
             ],
           ),
         ),
@@ -211,9 +122,74 @@ class _PantallaPerfilState extends State<PantallaPerfil> {
     );
   }
 
-  Widget _buildProfileImage() => const SizedBox.shrink();
-  Widget _buildGuestUpgradeSection(BuildContext context) => const SizedBox.shrink();
-  Widget _buildBackupSection(BuildContext context) => const SizedBox.shrink();
-  Widget _buildLogoutButton(BuildContext context) => const SizedBox.shrink();
-  Widget _buildViewTile(IconData icon, String title, String? subtitle, {bool showDivider = true}) => ListTile(title: Text(title), subtitle: Text(subtitle ?? 'N/A'));
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {TextInputType keyboardType = TextInputType.text, bool isRequired = true}) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        icon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+      ),
+      keyboardType: keyboardType,
+      validator: (value) {
+        if (isRequired && (value == null || value.isEmpty)) {
+          return 'Este campo es obligatorio';
+        }
+        if (keyboardType == TextInputType.number && value != null && value.isNotEmpty && (double.tryParse(value) ?? -1) < 0) {
+          return 'Debe ser un número positivo';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildSexoDropdown() {
+    return DropdownButtonFormField<Sexo>(
+      initialValue: _sexoSeleccionado,
+      decoration: InputDecoration(
+        labelText: 'Sexo',
+        icon: const Icon(Icons.wc_outlined),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+      ),
+      items: Sexo.values.map((sexo) {
+        return DropdownMenuItem<Sexo>(
+          value: sexo,
+          child: Text(sexo.name[0].toUpperCase() + sexo.name.substring(1)),
+        );
+      }).toList(),
+      onChanged: (value) => setState(() => _sexoSeleccionado = value),
+      validator: (value) => value == null ? 'Selecciona una opción' : null,
+    );
+  }
+
+  Widget _buildActividadDropdown() {
+    final Map<NivelActividad, String> actividadLabels = {
+      NivelActividad.sedentario: 'Sedentario (poco o nada de ejercicio)',
+      NivelActividad.ligero: 'Ligero (ejercicio 1-3 días/semana)',
+      NivelActividad.moderado: 'Moderado (ejercicio 3-5 días/semana)',
+      NivelActividad.activo: 'Activo (ejercicio 6-7 días/semana)',
+      NivelActividad.muyActivo: 'Muy Activo (trabajo físico o 2x día)',
+    };
+
+    return DropdownButtonFormField<NivelActividad>(
+      initialValue: _actividadSeleccionada,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: 'Nivel de Actividad Física',
+        icon: const Icon(Icons.directions_run_outlined),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+      ),
+      items: NivelActividad.values.map((nivel) {
+        return DropdownMenuItem<NivelActividad>(
+          value: nivel,
+          child: Text(actividadLabels[nivel]!, overflow: TextOverflow.ellipsis),
+        );
+      }).toList(),
+      onChanged: (value) => setState(() => _actividadSeleccionada = value),
+      validator: (value) => value == null ? 'Selecciona una opción' : null,
+    );
+  }
 }

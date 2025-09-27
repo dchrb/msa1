@@ -20,14 +20,17 @@ class PantallaAuth extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(flex: 2),
-              Icon(
-                Icons.shield_outlined,
-                size: 80,
-                color: colorScheme.primary,
+
+              // --- Logo de la aplicación ---
+              Image.asset(
+                'assets/images/luna_inicio.png', // <-- Confirmado en minúsculas
+                height: 150,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+
+              // --- Texto de bienvenida ---
               Text(
-                'Bienvenido a MSA',
+                'Bienvenido a Mi Salud Activa',
                 style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
@@ -39,7 +42,7 @@ class PantallaAuth extends StatelessWidget {
               ),
               const Spacer(flex: 3),
 
-              // --- Opción 1: Iniciar Sesión con Google ---
+              // --- Botón de Iniciar Sesión con Google ---
               ElevatedButton.icon(
                 icon: const Icon(Icons.cloud_upload_outlined, size: 18),
                 label: const Text('Iniciar Sesión con Google'),
@@ -50,25 +53,22 @@ class PantallaAuth extends StatelessWidget {
                 ),
                 onPressed: () async {
                   await syncProvider.signInWithGoogle();
-                  // El AuthWrapper se encargará de la navegación si el login es exitoso
                 },
               ),
               const SizedBox(height: 16),
 
-              // --- Opción 2: Continuar como Invitado ---
+              // --- Botón de Continuar como Invitado ---
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 onPressed: () async {
-                  // Llama al método para inicio de sesión anónimo (que añadiremos)
                   final success = await syncProvider.signInAnonymously();
                   if (success == null && context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Error al iniciar como invitado')),
                     );
                   }
-                  // El AuthWrapper se encargará de la navegación si el login es exitoso
                 },
                 child: const Text('Continuar como Invitado'),
               ),

@@ -29,7 +29,7 @@ class NotificationService {
   /// Crea los canales de notificación necesarios para Android.
   /// En Android 8.0+ los canales son obligatorios.
   Future<void> _createNotificationChannels() async {
-    final AndroidNotificationChannel recordatoriosChannel = AndroidNotificationChannel(
+    const AndroidNotificationChannel recordatoriosChannel = AndroidNotificationChannel(
       channelId,
       channelName,
       description: channelDescription,
@@ -38,7 +38,7 @@ class NotificationService {
       enableVibration: true,
     );
 
-    final AndroidNotificationChannel syncChannel = AndroidNotificationChannel(
+    const AndroidNotificationChannel syncChannel = AndroidNotificationChannel(
       syncChannelId,
       syncChannelName,
       description: syncChannelDescription,
@@ -63,17 +63,14 @@ class NotificationService {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     
-    final DarwinInitializationSettings initializationSettingsDarwin =
+    const DarwinInitializationSettings initializationSettingsDarwin =
         DarwinInitializationSettings(
             requestAlertPermission: true,
             requestBadgePermission: true,
             requestSoundPermission: true,
-            onDidReceiveLocalNotification: (id, title, body, payload) async {
-              // Manejo para versiones antiguas de iOS
-            }
         );
 
-    final InitializationSettings initializationSettings = InitializationSettings(
+    const InitializationSettings initializationSettings = InitializationSettings(
       android: initializationSettingsAndroid,
       iOS: initializationSettingsDarwin,
       macOS: initializationSettingsDarwin,
@@ -92,10 +89,13 @@ class NotificationService {
     await _createNotificationChannels();
 
     // 4. Solicitar permisos de notificación explícitamente en Android
-    await _flutterLocalNotificationsPlugin
+    final androidImplementation = _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
+            AndroidFlutterLocalNotificationsPlugin>();
+    if (androidImplementation != null) {
+      await androidImplementation.requestNotificationsPermission();
+    }
+
 
     // 5. Inicializar las zonas horarias para la programación
     tz.initializeTimeZones();
@@ -121,13 +121,8 @@ class NotificationService {
 
   // --- MÉTODOS PARA RECORDATORIOS LOCALES ---
 
-  /// **CORREGIDO**: Programa una notificación diaria que se repite a la hora y minuto especificados.
-  /// La lógica confía en `matchDateTimeComponents: DateTimeComponents.time`, que es la forma
-  /// robusta y recomendada de crear recordatorios diarios recurrentes.
   Future<void> programarRecordatorioDiario(Recordatorio recordatorio) async {
     
-    // Asegurarse de que la hora programada sea en el futuro.
-    // Si la hora de hoy ya pasó, se programa para mañana.
     final now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate = tz.TZDateTime(
       tz.local,
@@ -142,9 +137,9 @@ class NotificationService {
     }
 
     await _flutterLocalNotificationsPlugin.zonedSchedule(
-      recordatorio.id.hashCode, // ID único para la notificación
-      recordatorio.mensaje, // Título de la notificación
-      'Es hora de cuidarte. ¡No te olvides de registrar tu actividad!', // Cuerpo
+      recordatorio.id.hashCode, 
+      recordatorio.mensaje, 
+      'Es hora de cuidarte. ¡No te olvides de registrar tu actividad!', 
       scheduledDate,
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -164,28 +159,22 @@ class NotificationService {
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time, // ¡La clave para la repetición diaria!
+      matchDateTimeComponents: DateTimeComponents.time, 
     );
-    debugPrint("Recordatorio '''${recordatorio.mensaje}''' programado para las ${recordatorio.hora}:${recordatorio.minuto} diariamente.");
+    debugPrint("Recordatorio '''{recordatorio.mensaje}''' programado para las ${recordatorio.hora}:${recordatorio.minuto} diariamente.");
   }
 
-  /// Cancela un recordatorio local específico usando su ID.
   Future<void> cancelarRecordatorio(String recordatorioId) async {
     await _flutterLocalNotificationsPlugin.cancel(recordatorioId.hashCode);
     debugPrint("Recordatorio con ID $recordatorioId cancelado.");
   }
 
-  /// Cancela todos los recordatorios programados.
   Future<void> cancelarTodosLosRecordatorios() async {
     await _flutterLocalNotificationsPlugin.cancelAll();
      debugPrint("Todos los recordatorios han sido cancelados.");
   }
 
-  // --- MÉTODOS PARA OTROS TIPOS DE NOTIFICACIONES ---
-
-  /// Muestra una notificación push de Firebase cuando la app está en primer plano.
   Future<void> _showFirebaseNotification(RemoteNotification notification) async {
-    // Reutiliza el canal de recordatorios para mostrar notificaciones push
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       channelId, channelName, channelDescription: channelDescription,
       importance: Importance.max, priority: Priority.high,
@@ -196,7 +185,6 @@ class NotificationService {
     );
   }
 
-  /// Muestra una notificación de bajo perfil para informar sobre la sincronización.
   Future<void> showSyncNotification({required String title, required String body}) async {
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       syncChannelId, syncChannelName, channelDescription: syncChannelDescription,
@@ -212,6 +200,7 @@ class NotificationService {
       channelId, channelName, channelDescription: channelDescription,
       importance: Importance.max, priority: Priority.high,
     );
+    // CORRECCIÓN: Corregido el error de tipeo 'androidolis' a 'androidDetails'
     const NotificationDetails platformDetails = NotificationDetails(android: androidDetails);
     await _flutterLocalNotificationsPlugin.show(
       0, '¡Notificación de Prueba!', 'Si puedes ver esto, el servicio de notificaciones está funcionando.', platformDetails,
